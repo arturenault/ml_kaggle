@@ -2,6 +2,9 @@ from sklearn import tree
 import numpy
 import pandas
 import csv
+import argparse
+from os.path import isfile
+import pickle
 
 train_filename = "data.csv"
 test_filename  = "quiz.csv"
@@ -17,20 +20,25 @@ def is_num(string):
 def get_train_data():
   with open(train_filename) as train_file:
     reader = csv.reader(train_file)
-    x = []
+
+    series = reader.next()
+    x = dict((i, []) for i in series[:-1])
     y = []
-    reader.next()
+
     for row in reader:
-      x.append([(float(i) if is_num(i) else i) for i in row])
+      for i, element in enumerate(row[:-1]):
+        if is_num(element):
+          x[series[i]].append(float(element))
+        else:
+          x[series[i]].append(element)
       y.append(float(row[-1]))
+
 
     dataframe = pandas.DataFrame(data=x)
 
     processed_data = pandas.get_dummies(dataframe)
 
-    matrix = processed_data.as_matrix()
-
-    return matrix, y
+    return processed_data, y
 
 def train(data, labels):
   classifier = tree.DecisionTreeClassifier()
@@ -40,27 +48,39 @@ def train(data, labels):
 def get_test_data():
   with open(test_filename) as test_file:
     reader = csv.reader(test_file)
-    x = []
-    reader.next()
+
+    series = reader.next()
+    x = dict((i, []) for i in series)
+
     for row in reader:
-      x.append([(float(i) if is_num(i) else i )for i in row])
+      for i, element in enumerate(row):
+        if is_num(element):
+          x[series[i]].append(float(element))
+        else:
+          x[series[i]].append(element)
 
     dataframe = pandas.DataFrame(data=x)
 
     processed_data = pandas.get_dummies(dataframe)
 
-    matrix = processed_data.as_matrix()
+    return processed_data
 
-    return matrix
+def fix_test_data(train_data, test_data):
+  for series in train_data:
+    if series not in test_data:
+      test_data[series] = 0.0
+
+  for series in test_data:
+    if series not in train_data:
+      test_data.drop(series, axis=1, inplace=True)
 
 def classify(classifier, test_data):
-  predictions = []
-  for datum in test_data:
-      predictions.append(classifier.predict(datum))
+  predictions = classifier.predict(test_data)
+  predictions = [int(i) for i in predictions]
   return predictions
 
 def output(predictions):
-  with open(output_filename) as output_file:
+  with open(output_filename, "w") as output_file:
     writer = csv.writer(output_file)
     writer.writerow(["id", "Prediction"])
     for i in range(len(predictions)):
@@ -68,14 +88,32 @@ def output(predictions):
 
 
 def main():
-  data, labels = get_train_data()
+  parser = argparse.ArgumentParser()
+  parser.add_argument("-r", "--regenerate", action="store_true")
+  args = parser.parse_args()
 
-  classifier = train(data, labels)
+  print "getting training data"
+  train_data, labels = get_train_data()
 
-  test_data = get_test_data()
+  print "training"
+  classifier = train(train_data, labels)
 
+  if isfile("test_data.pickle") and not args.regenerate:
+    print "loading test data"
+    test_data = pickle.load(open("test_data.pickle"))
+
+  else:
+    print "getting test data"
+    test_data = get_test_data()
+
+    print "fixing test data"
+    fix_test_data(train_data, test_data)
+
+
+  print "classifying"
   predictions = classify(classifier, test_data)
 
+  print "outputting"
   output(predictions)
 
 
