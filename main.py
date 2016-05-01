@@ -1,10 +1,11 @@
-from sklearn import tree
 import numpy
 import pandas
 import csv
 import argparse
 from os.path import isfile
 import pickle
+
+from sklearn.ensemble import AdaBoostClassifier
 
 train_filename = "data.csv"
 test_filename  = "quiz.csv"
@@ -41,7 +42,7 @@ def get_train_data():
     return processed_data, y
 
 def train(data, labels):
-  classifier = tree.DecisionTreeClassifier()
+  classifier = AdaBoostClassifier()
   classifier = classifier.fit(data, labels)
   return classifier
 
