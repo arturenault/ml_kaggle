@@ -21,7 +21,7 @@ def train():
 		reader1 = csv.reader(train_file)
 		reader2 = csv.reader(test_file)
 		series = reader1.next()
-		series2 = reader2.next
+		series2 = reader2.next()
 		x_train = []
 		y_train = []
 
@@ -84,10 +84,11 @@ def train():
  		# print str(float(correct)/float(correct + wrong))
 		# print "total " + str(correct + wrong)
 
-		writer = csv.writer(out_file, delimter=',')
+		print len(predicted_y)
+		writer = csv.writer(out_file)
 		writer.writerow(['Id','Prediction'])
 		for index in range(0, len(predicted_y)):
-			writer.writerow([index,int(predicted_y[index])])
+			writer.writerow([index+1,int(predicted_y[index])])
 	t1 = time.time()
 	print t1-t0
 	
