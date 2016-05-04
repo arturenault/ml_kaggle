@@ -1,1 +1,5 @@
 *.pickle
+*.csv
+!data.csv
+!quiz.csv
+.idea/

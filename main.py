@@ -1,79 +1,62 @@
-import numpy
-import pandas
+
 import csv
-import argparse
 from os.path import isfile
-import pickle
+import sys
 
 from sklearn.ensemble import AdaBoostClassifier
 
 test_fraction = 0.2
-train_filename = "data.csv"
-test_filename  = "quiz.csv"
 
-def is_num(string):
-  try:
-    float(string)
-    return True
-  except ValueError:
-    return False
+def get_data(train_filename, test_filename):
+  with open(train_filename) as train_file, open(test_filename) as test_file:
+    reader_train = csv.reader(train_file)
+    reader_test = csv.reader(test_file)
 
-def get_train_data():
-  with open(train_filename) as train_file:
-    reader = csv.reader(train_file)
+    reader_train.next()
+    reader_test.next()
 
-    series = reader.next()
-    x = dict((i, []) for i in series[:-1])
+    x_train = []
     y = []
 
-    for row in reader:
-      for i, element in enumerate(row[:-1]):
-        if is_num(element):
-          x[series[i]].append(float(element))
-        else:
-          x[series[i]].append(element)
-      y.append(float(row[-1]))
+    x_test = []
+
+    for row in reader_train:
+      x_train.append(row[:-1])
+      y.append(int(row[-1]))
+
+    for row in reader_test:
+      x_test.append(row)
 
 
-    dataframe = pandas.DataFrame(data=x)
+    train_size = len(x_train)
 
-    processed_data = pandas.get_dummies(dataframe, drop_first=True)
+    x = x_train + x_test
 
-    return processed_data, y
+    labeler = preprocessing.LabelEncoder()
+
+    columns = len(x[0])
+
+    for column in range(columns):
+      current = [row[column] for row in x]
+      labeler.fit(current)
+      new_column = le.transform(current)
+      for row in range(len(x)):
+        x[row][column] = new_column[row]
+
+    onehot = OneHotEncoder()
+    onehot.fit(x)
+
+    x = onehot.transform(x).toarray()
+
+    x_train = x[train_size:]
+    x_test = x[:train_size]
+
+    return x_train, x_test, y
 
 def train(data, labels):
   classifier = AdaBoostClassifier()
   classifier = classifier.fit(data, labels)
   return classifier
-
-def get_test_data():
-  with open(test_filename) as test_file:
-    reader = csv.reader(test_file)
-
-    series = reader.next()
-    x = dict((i, []) for i in series)
-
-    for row in reader:
-      for i, element in enumerate(row):
-        if is_num(element):
-          x[series[i]].append(float(element))
-        else:
-          x[series[i]].append(element)
-
-    dataframe = pandas.DataFrame(data=x)
-
-    processed_data = pandas.get_dummies(dataframe, drop_first=True)
-
-    return processed_data
-
-def fix_test_data(train_data, test_data):
-  for series in train_data:
-    if series not in test_data:
-      test_data[series] = 0.0
-
-  for series in test_data:
-    if series not in train_data:
-      test_data.drop(series, axis=1, inplace=True)
 
 def classify(classifier, test_data):
   predictions = classifier.predict(test_data)
@@ -96,13 +79,15 @@ def output(predictions, filename):
       writer.writerow([str(i + 1), predictions[i]])
 
 def main():
-  parser = argparse.ArgumentParser()
-  parser.add_argument("-r", "--regenerate", action="store_true")
-  parser.add_argument("-o", "--output", action="store")
-  args = parser.parse_args()
+  try:
+    datafile = sys.argv[1]
+    quizfile = sys.argv[2]
+    outputfile = sys.argv[3]
+  except:
+    sys.exit("usage: python final_predictions.py DATAFILE QUIZFILE OUTPUTFILE")
 
-  print "getting training data"
-  train_data, labels = get_train_data()
+  print "getting data"
+  train_data, test_data, labels = get_train_data(datafile, quizfile)
 
   train_number = int(len(train_data) * (1 - test_fraction))
   test_number = len(train_data) - train_number
@@ -115,26 +100,11 @@ def main():
 
   print "Score: " + str(score)
 
-  if args.output is not None:
-    if isfile("test_data.pickle") and not args.regenerate:
-      print "loading test data"
-      test_data = pickle.load(open("test_data.pickle"))
+  print "classifying"
+  predictions = classify(classifier, test_data)
 
-    else:
-      print "getting test data"
-      test_data = get_test_data()
-
-      print "fixing test data"
-      fix_test_data(train_data, test_data)
-
-      print "pickling test data"
-      pickle.dump(test_data, open("test_data.pickle", "w"))
-
-    print "classifying"
-    predictions = classify(classifier, test_data)
-
-    print "outputting"
-    output(predictions, args.output)
+  print "outputting"
+  output(predictions, outputfile)
 
 
 
