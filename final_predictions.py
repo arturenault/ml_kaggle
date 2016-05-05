@@ -1,11 +1,13 @@
 import csv
 
 import sys
-from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
+from sklearn.ensemble import AdaBoostClassifier, ExtraTreesClassifier
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
+from sklearn.tree import DecisionTreeClassifier
 import time
 
-test_fraction = 0.2
+test_fraction = 0.0
+categoricals = [0, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 44, 45, 46]
 
 
 def get_data(train_filename, test_filename):
@@ -43,10 +45,11 @@ def get_data(train_filename, test_filename):
             for row in range(len(x)):
                 x[row][column] = new_column[row]
 
-        onehot = OneHotEncoder()
+        onehot = OneHotEncoder(categorical_features=categoricals)
         onehot.fit(x)
-
         x = onehot.transform(x).toarray()
+        print len(x)
+        print len(x[0])
 
         x_train = x[:train_size]
         x_test = x[train_size:]
@@ -55,7 +58,7 @@ def get_data(train_filename, test_filename):
 
 
 def train(data, labels):
-    internal_classifier = RandomForestClassifier()
+    internal_classifier = ExtraTreesClassifier()
     classifier = AdaBoostClassifier(base_estimator=internal_classifier)
     classifier = classifier.fit(data, labels)
     return classifier
