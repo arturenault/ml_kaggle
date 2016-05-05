@@ -1,9 +1,9 @@
 import csv
 
 import sys
-from sklearn.ensemble import AdaBoostClassifier
+from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
-
+import time
 
 test_fraction = 0.2
 
@@ -55,7 +55,8 @@ def get_data(train_filename, test_filename):
 
 
 def train(data, labels):
-    classifier = AdaBoostClassifier()
+    internal_classifier = RandomForestClassifier()
+    classifier = AdaBoostClassifier(base_estimator=internal_classifier)
     classifier = classifier.fit(data, labels)
     return classifier
 
@@ -84,6 +85,8 @@ def output(predictions, filename):
 
 
 def main():
+    print "Current time: " + time.strftime("%Y-%m-%d %H:%M:%S")
+    start = time.time()
     try:
         datafile = sys.argv[1]
         quizfile = sys.argv[2]
@@ -113,6 +116,12 @@ def main():
 
     print "outputting"
     output(predictions, outputfile)
+
+    end = time.time()
+    print "total running time: {} seconds" % (end - start)
+
+    # make a noise so you know it's done
+    print '\a'
 
 if __name__ == "__main__":
     main()
