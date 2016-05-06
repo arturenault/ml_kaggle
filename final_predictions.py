@@ -1,13 +1,13 @@
 import csv
-
-import sys
-from sklearn.ensemble import AdaBoostClassifier, ExtraTreesClassifier
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder
-from sklearn.tree import DecisionTreeClassifier
 import time
 
-test_fraction = 0.0
-categoricals = [0, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 44, 45, 46]
+import sys
+from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier, \
+    BaggingClassifier
+from sklearn.preprocessing import LabelEncoder, PolynomialFeatures
+
+
+test_fraction = 0.2
 
 
 def get_data(train_filename, test_filename):
@@ -45,11 +45,11 @@ def get_data(train_filename, test_filename):
             for row in range(len(x)):
                 x[row][column] = new_column[row]
 
-        onehot = OneHotEncoder(categorical_features=categoricals)
-        onehot.fit(x)
-        x = onehot.transform(x).toarray()
-        print len(x)
-        print len(x[0])
+        poly = PolynomialFeatures()
+        x = poly.fit_transform(x)
+
+        print(len(x))
+        print(len(x[0]))
 
         x_train = x[:train_size]
         x_test = x[train_size:]
@@ -58,9 +58,20 @@ def get_data(train_filename, test_filename):
 
 
 def train(data, labels):
-    internal_classifier = ExtraTreesClassifier()
-    classifier = AdaBoostClassifier(base_estimator=internal_classifier)
-    classifier = classifier.fit(data, labels)
+    """
+    classifier = VotingClassifier(estimators=[
+        ('rf', RandomForestClassifier(n_estimators=400, n_jobs=-1)),
+        ('ada', AdaBoostClassifier(n_estimators=50,
+                                   base_estimator=RandomForestClassifier(
+                                       n_estimators=40, n_jobs=-1))),
+        ('nc', NearestCentroid())
+    ])
+    """
+    classifier = BaggingClassifier(base_estimator=AdaBoostClassifier(
+        base_estimator=RandomForestClassifier(n_estimators=40, n_jobs=-1)),
+                                   n_jobs=-1)
+
+    classifier.fit(data, labels)
     return classifier
 
 
@@ -68,15 +79,6 @@ def classify(classifier, test_data):
     predictions = classifier.predict(test_data)
     predictions = [int(i) for i in predictions]
     return predictions
-
-
-def test(classifier, test_data, labels):
-    predictions = classify(classifier, test_data)
-    correct = 0.0
-    for i, prediction in enumerate(predictions):
-        if prediction == labels[i]:
-            correct += 1
-    return correct / len(labels)
 
 
 def output(predictions, filename):
@@ -108,11 +110,10 @@ def main():
 
     if test_fraction > 0:
         print "testing"
-        score = test(classifier, train_data[train_number:],
-                     labels[train_number:])
+        score = classifier.score(train_data[train_number:],
+                                 labels[train_number:])
 
         print "Score: " + str(score)
-
 
     print "classifying"
     predictions = classify(classifier, test_data)
@@ -121,10 +122,11 @@ def main():
     output(predictions, outputfile)
 
     end = time.time()
-    print "total running time: {} seconds" % (end - start)
+    print "total running time: " + str(end - start)
 
     # make a noise so you know it's done
     print '\a'
+
 
 if __name__ == "__main__":
     main()
